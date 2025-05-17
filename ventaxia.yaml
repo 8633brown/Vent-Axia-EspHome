@@ -1,0 +1,75 @@
+esphome:
+  name: ventaxia
+
+esp32:
+  board: az-delivery-devkit-v4
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 192.168.1.122
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ventaxia Fallback Hotspot"
+    password: "u7At63hUQoaD"
+
+captive_portal:
+    
+uart:
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+  rx_buffer_size: 82
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+  debug:
+    direction: BOTH
+    dummy_receiver: true
+    after:
+      bytes: 42
+        #delimiter: [0x02, 0x00, 0x00, 0x00, 0x00]
+    sequence:
+      - lambda: |-
+          if (direction == UART_DIRECTION_TX) { UARTDebug::log_string(direction, bytes); }
+          std::string str(bytes.begin(), bytes.end());
+          std::string l1;
+          std::string lTotal;
+          l1 = str.substr(6, 16);
+          size_t end = l1.find_last_not_of(" \t\n");
+          l1 = (end == std::string::npos) ? "" : l1.substr(0, end + 1);
+
+          std::string l2;
+          l2 = str.substr(23, 16);
+          end = l2.find_last_not_of(" \t\n");
+          l2 = (end == std::string::npos) ? "" : l2.substr(0, end + 1);
+
+          lTotal = l1 + " " + l2;
+          id(rawString).publish_state( lTotal.c_str() );
+
+button:
+  - platform: uart
+    name: "boost"
+    data: [0x04, 0x05, 0xAF, 0xEF, 0xFB, 0x08, 0xFD, 0x55]
+
+text_sensor:
+  - platform: template
+    name: "Raw String"
+    id: "rawString"
